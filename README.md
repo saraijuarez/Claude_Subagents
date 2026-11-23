@@ -100,7 +100,11 @@ flowchart LR
 Si otro plugin tiene un comando con el mismo nombre, usa el nombre
 completo: `/qa-site-documenter:documentar-sitio`.
 
-- Si falta la URL o el alcance, te los pregunta.
+- Al iniciar **siempre** te pregunta lo que falte: URL, alcance, entorno,
+  si requiere login y los **nombres** de las variables de credenciales.
+- Comprueba que esas variables estén definidas **sin mostrar su valor**
+  y te pide confirmación antes de empezar.
+- Puedes ejecutarlo sin argumentos: `/documentar-sitio`.
 - Si no indicas el entorno, asume **producción**, así que nunca ejecuta
   pasos irreversibles.
 - Solo pasa a los agentes los **nombres** de las variables de
@@ -193,6 +197,19 @@ mkdir -p .claude/agents
 ``` bash
 curl -fsSL https://raw.githubusercontent.com/saraijuarez/Claude_Subagents/main/plugins/qa-doc-reader/agents/test-doc-reader.md -o .claude/agents/test-doc-reader.md
 ```
+
+Para el comando `/documentar-sitio` en la nube, cópialo también:
+
+``` bash
+mkdir -p .claude/commands
+```
+
+``` bash
+curl -fsSL https://raw.githubusercontent.com/saraijuarez/Claude_Subagents/main/plugins/qa-site-documenter/commands/documentar-sitio.md -o .claude/commands/documentar-sitio.md
+```
+
+Las credenciales se definen como variables de entorno del entorno de
+la sesión en la nube, nunca en el chat.
 
 Para los otros subagentes, cambia la ruta por
 `plugins/qa-site-documenter/agents/site-functional-documenter.md` o

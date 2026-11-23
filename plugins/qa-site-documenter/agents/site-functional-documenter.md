@@ -23,6 +23,13 @@ site.
 If the URL or scope is missing, ask for it and stop. Do not guess the
 scope.
 
+You cannot ask the user questions yourself: if something required is
+missing, stop and return the list of missing inputs to the caller.
+If the scope needs login and you received no credential variable names
+(or the variables are empty), do not try to log in: document only the
+public part and list the authenticated pages under "not explored —
+requires credentials".
+
 ## Hard rules
 
 1. **Stay in scope.** Visit only the given domain and only the pages
