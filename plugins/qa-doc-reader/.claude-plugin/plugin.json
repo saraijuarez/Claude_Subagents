@@ -1,0 +1,7 @@
+{
+  "name": "qa-doc-reader",
+  "version": "1.0.0",
+  "description": "Subagente de solo lectura que lee documentos de un sistema y resume lo importante para probarlo.",
+  "author": { "name": "Sarai Juarez" },
+  "license": "MIT"
+}

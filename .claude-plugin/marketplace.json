@@ -1,0 +1,12 @@
+{
+  "name": "sarai-qa-tools",
+  "description": "Plugins de Claude Code para QA y automatización de pruebas.",
+  "owner": { "name": "Sarai Juarez" },
+  "plugins": [
+    {
+      "name": "qa-doc-reader",
+      "source": "./plugins/qa-doc-reader",
+      "description": "Subagente de solo lectura que lee documentos de un sistema y resume lo importante para probarlo."
+    }
+  ]
+}
