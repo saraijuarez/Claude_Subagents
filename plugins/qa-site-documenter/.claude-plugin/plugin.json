@@ -1,6 +1,6 @@
 {
   "name": "qa-site-documenter",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Subagente que recorre un sitio web dentro del alcance indicado y genera un documento con el detalle de su funcionamiento.",
   "author": { "name": "Sarai Juarez" },
   "license": "MIT"
