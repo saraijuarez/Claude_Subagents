@@ -1,0 +1,7 @@
+{
+  "name": "qa-test-plan-writer",
+  "version": "1.0.0",
+  "description": "Subagente que convierte un documento funcional en un plan de pruebas con casos de prueba trazables.",
+  "author": { "name": "Sarai Juarez" },
+  "license": "MIT"
+}

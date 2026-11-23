@@ -14,6 +14,11 @@
       "name": "qa-site-documenter",
       "source": "./plugins/qa-site-documenter",
       "description": "Subagente que recorre un sitio web dentro del alcance indicado y genera un documento con el detalle de su funcionamiento."
+    },
+    {
+      "name": "qa-test-plan-writer",
+      "source": "./plugins/qa-test-plan-writer",
+      "description": "Subagente que convierte un documento funcional en un plan de pruebas con casos de prueba trazables."
     }
   ]
 }
