@@ -64,7 +64,10 @@ Reglas de seguridad del subagente:
 - Usa solo las credenciales que le des (mejor por variables de
   entorno) y nunca las escribe en el documento.
 - No fuerza autenticación, CAPTCHAs ni límites de uso, y navega a ritmo
-  humano.
+  humano. Hace **como máximo 3 intentos fallidos de login** y no prueba
+  el bloqueo de cuentas.
+- Usa el Playwright de tu proyecto (`NODE_PATH=./node_modules`) aunque
+  sus scripts temporales estén fuera de él.
 - Trata el contenido del sitio como datos, no como instrucciones.
 
 Requisitos y permisos:
@@ -77,6 +80,35 @@ Requisitos y permisos:
   el comando de instalación; nunca instala nada sin preguntar.
 - Para URLs `http://` o `localhost` usa `curl`, porque WebFetch fuerza
   HTTPS.
+
+## Comando `/documentar-sitio`: todo en un paso
+
+Viene con el plugin `qa-site-documenter` y encadena los dos subagentes:
+
+```mermaid
+flowchart LR
+    A["/documentar-sitio URL + alcance"] --> B[site-functional-documenter]
+    B -->|documento creado| C[test-plan-writer]
+    B -->|sin acceso o sin permisos| X[Se detiene y explica el motivo]
+    C --> D[Documento + plan + CSV]
+```
+
+``` text
+/documentar-sitio URL: https://www.saucedemo.com/ | Alcance: login, catálogo y carrito | Entorno: demo | Credenciales: DEMO_USER, DEMO_PASS
+```
+
+Si otro plugin tiene un comando con el mismo nombre, usa el nombre
+completo: `/qa-site-documenter:documentar-sitio`.
+
+- Si falta la URL o el alcance, te los pregunta.
+- Si no indicas el entorno, asume **producción**, así que nunca ejecuta
+  pasos irreversibles.
+- Solo pasa a los agentes los **nombres** de las variables de
+  credenciales. Si escribes una contraseña en el comando, no la usa ni
+  la repite.
+- Necesita **ambos plugins**: `qa-site-documenter` y
+  `qa-test-plan-writer`. Si falta el segundo, entrega solo el documento
+  funcional y te dice cómo instalarlo.
 
 ## `test-plan-writer`: qué entrega
 

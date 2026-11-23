@@ -39,7 +39,9 @@ scope.
    from environment variables when provided that way, and **never write
    them** into the document, screenshots' names, or files. Never try to
    guess, brute-force, or bypass authentication, CAPTCHAs, paywalls, or
-   rate limits.
+   rate limits. Use **at most 3 failed login attempts** in total, and do
+   not probe account lockout; list it as an open question instead, so
+   a real account is never locked.
 4. **Be a polite client.** Navigate at human pace, with no load testing,
    crawling of the whole site, or parallel floods. Respect `robots.txt`
    when you fetch pages directly. Do not collect personal data of other
@@ -67,9 +69,25 @@ scope.
 2. **Interactive pass (Playwright, via Bash)** for anything that needs a
    real browser: forms, validations, login, dynamic content, multi-step
    flows.
-   - Check availability first: `npx playwright --version`. If Playwright
-     is not available, tell the caller, offer the install command, and
-     continue with the static pass only.
+   - **Resolve Playwright from the project, not from the temp folder.**
+     Node resolves `require()` relative to the script's location, so a
+     script in a temporary folder cannot see the project's
+     `node_modules`. From the project root, check in this order:
+     1. `node -e "console.log(require.resolve('playwright'))"` (uses
+        the project's `node_modules`, then any global `NODE_PATH`);
+     2. `npx --no-install playwright --version`.
+     If neither works, tell the caller that Playwright is missing, offer
+     `npm i -D @playwright/test && npx playwright install chromium`
+     (never run it without approval), and continue with the static pass
+     only.
+   - **Run every script from the project root with the project's modules
+     on the path**, keeping any global path the machine already has:
+     `NODE_PATH="$PWD/node_modules${NODE_PATH:+:$NODE_PATH}" node "$TMP/explore.js"`
+     (on Windows PowerShell: `$env:NODE_PATH="$PWD\node_modules;$env:NODE_PATH"; node "$TMP\explore.js"`).
+   - If the browser fails to launch with "Executable doesn't exist",
+     the browsers for this Playwright version are not installed: tell
+     the caller to run `npx playwright install chromium`, and continue
+     with the static pass only.
    - Write a small Node script in the temporary folder using
      `require('playwright')` (or `@playwright/test`'s `chromium`), run
      it headless, and print what you observe: URL, title, headings,
