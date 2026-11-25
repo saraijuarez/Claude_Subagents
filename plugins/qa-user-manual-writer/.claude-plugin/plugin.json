@@ -1,6 +1,6 @@
 {
   "name": "qa-user-manual-writer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Subagente que recorre un módulo de un sitio web y genera su manual de usuario en PDF, ejecutando los flujos con datos de prueba cuando el entorno es demo, test o staging.",
   "author": { "name": "Sarai Juarez" },
   "license": "MIT"
