@@ -19,6 +19,11 @@
       "name": "qa-test-plan-writer",
       "source": "./plugins/qa-test-plan-writer",
       "description": "Subagente que convierte un documento funcional en un plan de pruebas con casos de prueba trazables."
+    },
+    {
+      "name": "qa-user-manual-writer",
+      "source": "./plugins/qa-user-manual-writer",
+      "description": "Subagente que recorre un módulo de un sitio web y genera su manual de usuario en PDF; en demo/test/staging ejecuta los flujos con registros de prueba propios."
     }
   ]
 }
