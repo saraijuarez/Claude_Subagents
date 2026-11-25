@@ -189,11 +189,16 @@ Otros comportamientos:
   carpeta temporal con nombre fijo. Si la ejecución se corta, al
   volver a lanzarlo no repite altas ni bajas y primero busca los
   registros `QA-MANUAL-` que hayan quedado.
+- **No toca registros ajenos o anómalos.** Los que encuentre (sin
+  estado, duplicados o de otra ejecución) solo los reporta para que
+  una persona decida.
+- **Capturas sin animaciones a medias.** Espera a que terminen las
+  animaciones de entrada antes de cada captura.
 - **Navegador en el idioma del manual** (`es-MX`), para que los avisos
   del navegador salgan en español.
 - **Verifica el PDF sin depender de poppler.** Revisa el HTML con
-  estilo de impresión a ancho A4: imágenes cargadas, nada que se salga
-  de la página y capturas de cada sección. Si `pdftoppm` está
+  estilo de impresión al ancho imprimible de A4 (≈680 px): imágenes
+  cargadas, nada que se salga de la página y capturas de cada sección. Si `pdftoppm` está
   instalado, también lee las páginas del PDF.
 - **Mensajes que no se pueden capturar** (confirmaciones del navegador,
   avisos que desaparecen) se citan textualmente en el manual.

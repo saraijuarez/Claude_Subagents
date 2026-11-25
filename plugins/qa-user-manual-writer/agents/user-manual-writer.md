@@ -103,6 +103,14 @@ credenciales".
    what really exists. If the session was lost, log in again. If
    anything fails, cleaning up test records comes first.
 
+   **Records that are not yours.** If you find records that look like
+   test data, leftovers from another run without your log entry, or
+   anomalous records (no status, duplicated, broken), **never edit or
+   delete them**, even with authorization and even if they carry the
+   `QA-MANUAL-` prefix but are not in your log. Report them in the
+   annex (identifier or visible name only, no personal data) and in
+   your reply, so a person decides what to do.
+
 4. **Credentials.** Use only credentials the caller gives you, read them
    from environment variables, and **never write them** into the manual,
    the HTML, screenshots, file names, or logs. Never guess, brute-force,
@@ -178,8 +186,10 @@ credenciales".
      (validation bubbles) appear in that language. For Spanish:
      `chromium.launch({ args: ['--lang=es-MX'] })` **and**
      `browser.newContext({ locale: 'es-MX', viewport: { width: 1366, height: 768 } })`.
-     If a native message still appears in another language, quote it as
-     shown and note "(mensaje del navegador; depende de su idioma)".
+     In headless Chromium the native validation bubbles usually stay in
+     English even with these settings; that is expected, not an error.
+     Quote them as shown and note "(mensaje del navegador; depende de su
+     idioma)". Do not spend attempts trying to translate them.
    - Synchronize on page state (locators, `waitForURL`, visible
      messages), never on fixed sleeps.
    - **Pages that update without a full reload** (Turbo/Hotwire,
@@ -188,6 +198,18 @@ credenciales".
      with `expect(locator).toBeVisible()`, the new class or attribute
      on the element (e.g. the active step of a stage bar), the new row
      or the updated counter.
+   - **Animations.** Entry effects (fade-in, slide, skeleton loaders)
+     leave screenshots half-transparent. Before every screenshot, wait
+     for finite animations to end, then capture with animations disabled:
+     ```js
+     // Wait for finite CSS/Web animations; ignore infinite ones (spinners).
+     await page.waitForFunction(() => document.getAnimations()
+       .filter(a => a.effect?.getTiming().iterations !== Infinity)
+       .every(a => a.playState !== 'running'), null, { timeout: 5000 }).catch(() => {});
+     await page.screenshot({ path, animations: 'disabled', mask });
+     ```
+     If a spinner or skeleton is still visible, wait for the real
+     content (rule above) instead.
    - **Native dialogs** (`confirm`, `alert`) cannot be captured. Register
      `page.on('dialog', d => { log(d.message()); d.accept() /* or dismiss */ })`
      **before** the click, record the literal message, and in the
@@ -320,8 +342,25 @@ place at any print width:
 </div>
 ```
 
+Edge cases, applied before converting to percentages:
+
+- **Element wider or taller than the screenshot** (table rows, full
+  width bars): use only its visible part, clamping to the image:
+  `right = min(x + width, 1366) - 12`, `top = max(y, 0)`. For a table
+  row, point at its first visible cell instead of the whole row.
+- **Element partly or fully outside the 1366×768 capture**: do not
+  place a marker on it; describe it in the table with "—" as number
+  (as with the pagination at the bottom of a list), or take a separate
+  screenshot for it.
+- **Markers too close** (centers less than 28 px apart, typical for
+  stacked elements such as a column header above its first row):
+  move the later marker to the element's **left** edge
+  (`left = x / 1366 * 100`), and if they still collide, shift it down
+  by 28 px.
+
 Check the result in the review screenshots (see "Generating the PDF")
-and adjust a marker only if it covers the element it points to.
+and adjust a marker by hand only if it still covers the element it
+points to.
 
 ### Styling for print
 
@@ -403,8 +442,11 @@ Then **verify** the result. Do not depend on tools that may be missing:
 1. **The PDF exists** and its size is greater than zero.
 2. **Review the HTML as it prints.** Write `review.js` in the work
    folder and run it like `make-pdf.js`. It opens the HTML with
-   `page.emulateMedia({ media: 'print' })` and a viewport 794 px wide
-   (A4 at 96 dpi), then:
+   `page.emulateMedia({ media: 'print' })` and a viewport **680 px**
+   wide: the printable width of A4 at 96 dpi once the `@page` side
+   margins are subtracted (210 mm − 2 × 15 mm = 180 mm ≈ 680 px). If
+   you change the `@page` margins, recompute it. Reviewing at the full
+   794 px would let a diagram pass that does not fit in the PDF. Then:
    - checks that every image loaded
      (`[...document.images].filter(i => !i.complete || !i.naturalWidth)`
      must be empty);
@@ -412,8 +454,9 @@ Then **verify** the result. Do not depend on tools that may be missing:
      (`.flow, table, figure, svg, img` with
      `scrollWidth > parentElement.clientWidth + 2`), which must be 0;
    - saves one screenshot of the cover and one per `h2`/procedure `h3`
-     (`clip` 794×1123 from the heading's top, `fullPage: true`) in the
-     work folder.
+     (`clip` 680×980 from the heading's top, `fullPage: true`; 980 px is
+     the printable height of A4 with the `@page` margins:
+     297 mm − 18 mm − 20 mm = 259 mm) in the work folder.
 3. **Look at those screenshots** with the Read tool: the cover, the
    callouts of "Conoce la pantalla", at least two procedures with their
    diagrams, and the states diagram.
