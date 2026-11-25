@@ -477,6 +477,11 @@ Keep it short:
 - number of procedures documented, and how the PDF was verified
   (print-rendered HTML, or PDF pages read with poppler);
 - flows executed vs. not executed (with the reason);
+- **visible functions of the module that the manual does not cover**
+  because they were outside the requested functionality (buttons,
+  panels, tabs, or actions you saw but did not document), so a narrow
+  scope never goes unnoticed. Write "ninguna" if the manual covers
+  everything visible in the module;
 - test records created and whether they were deleted (identifiers of
   any left behind);
 - the top 3 anomalies and the statements marked "(por confirmar)".
