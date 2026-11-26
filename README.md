@@ -192,16 +192,28 @@ Otros comportamientos:
 - **No toca registros ajenos o anómalos.** Los que encuentre (sin
   estado, duplicados o de otra ejecución) solo los reporta para que
   una persona decida.
+- **Vigila los registros que el sistema crea solo** en otros módulos
+  (por ejemplo, la tarea de seguimiento que genera "Registrar
+  contacto"). Los anota y, si quedan huérfanos fuera del módulo
+  autorizado, no los toca: te da el módulo y la URL para que los borre
+  una persona. En ese caso conserva la carpeta de trabajo con el
+  registro de acciones y borra solo la sesión guardada.
 - **Capturas sin animaciones a medias.** Espera a que terminen las
   animaciones de entrada antes de cada captura.
-- **Navegador en el idioma del manual** (`es-MX`), para que los avisos
-  del navegador salgan en español.
+- **Números de "Conoce la pantalla" sin tapar el texto.** Cada número
+  va justo a la derecha del elemento, a media altura.
+- **Navegador en el idioma del manual** (`es-MX`). En Chromium sin
+  interfaz algunos avisos del navegador siguen saliendo en inglés; se
+  citan tal cual.
 - **Verifica el PDF sin depender de poppler.** Revisa el HTML con
   estilo de impresión al ancho imprimible de A4 (≈680 px): imágenes
-  cargadas, nada que se salga de la página y capturas de cada sección. Si `pdftoppm` está
-  instalado, también lee las páginas del PDF.
-- **Mensajes que no se pueden capturar** (confirmaciones del navegador,
-  avisos que desaparecen) se citan textualmente en el manual.
+  cargadas, nada que se salga de la página, ningún texto que se salga
+  de los cuadros de los diagramas y capturas de cada sección. Si
+  `pdftoppm` está instalado, también lee las páginas del PDF.
+- **Mensajes del navegador.** Las confirmaciones (`confirm`, `alert`)
+  se citan textualmente. Los avisos de validación y los que
+  desaparecen rápido a veces sí salen en la captura: guarda siempre el
+  texto y usa la captura solo si el aviso se ve.
 
 Requisitos: **Playwright** en el proyecto (lo usa para recorrer los
 flujos y para imprimir el PDF con Chromium). Si falta, te ofrece el

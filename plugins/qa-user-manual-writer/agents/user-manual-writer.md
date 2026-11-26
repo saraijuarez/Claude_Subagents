@@ -96,6 +96,20 @@ credenciales".
    asked to keep them. Report any record you could not delete, with its
    identifier, so someone can remove it.
 
+   **Records the system creates by itself.** Some actions make the
+   system create records in **other modules** (e.g. registering a
+   contact with "Próximo seguimiento" creates a task in Actividades; a
+   lead may create a folio or a notification). After each write action,
+   check what else appeared (message, counter, activity entry, link to
+   another module) and log each of those records in `actions.jsonl` with
+   `"action": "side-effect"`, its module, identifier and URL. When you
+   delete the parent record, check whether they were deleted too. If one
+   remains and its module is **not** in the authorized scope, do not open
+   or delete it from that module: report it as pending, with its module
+   and URL, in the annex and in your reply, and mark it as an anomaly
+   (Medium) if deleting the parent leaves it orphaned. Delete it only if
+   the caller authorized actions in that module.
+
    **Resuming after an interruption.** If the work folder already
    exists when you start, you are resuming: read `actions.jsonl`, never
    repeat an action logged as done, reuse the screenshots it lists, and
@@ -151,7 +165,10 @@ credenciales".
    predictable name, so an interrupted run can resume:
    `${TMPDIR:-/tmp}/qa-manual-<site-slug>-<module-slug>` (PowerShell:
    `$env:TEMP\qa-manual-<site-slug>-<module-slug>`). Delete it only at
-   the end, after cleanup is confirmed. Never modify other project
+   the end, after cleanup is confirmed. If any test record (yours or a
+   side effect) remains, **keep the work folder** so the log survives,
+   delete only the saved session (`storageState`), and give its path in
+   your reply. Never modify other project
    files, and never install packages or tools without asking the
    caller.
 
@@ -213,9 +230,15 @@ credenciales".
    - **Native dialogs** (`confirm`, `alert`) cannot be captured. Register
      `page.on('dialog', d => { log(d.message()); d.accept() /* or dismiss */ })`
      **before** the click, record the literal message, and in the
-     manual quote it in text instead of a screenshot. Do the same for
-     validation bubbles and toasts that vanish too fast to capture
-     reliably.
+     manual quote it in text instead of a screenshot.
+   - **Validation bubbles and fast toasts** are captured only sometimes:
+     a validation bubble may appear in the screenshot or not, depending
+     on timing and the Chromium version. Always record the literal text
+     (`await input.evaluate(el => el.validationMessage)` for bubbles, the
+     locator's text for toasts) **and** take the screenshot. If the
+     message is visible in it, use the screenshot and quote the text in
+     the caption; if not, quote it in text. Do not retry just to get it
+     into the image.
 
 3. **Map the module first**: menu entry, main screen (list/grid,
    filters, buttons, tabs), forms (fields, required marks, formats,
@@ -332,31 +355,48 @@ Pattern:
 
 Place the numbered markers with the `boundingBox()` positions you saved,
 converted to percentages of the 1366×768 screenshot, so they stay in
-place at any print width:
+place at any print width. Each marker sits **just outside the element's
+right edge, at half its height**, so it never covers the text it points
+to:
 
 ```html
 <div class="callouts">
   <img src="img/02-pantalla-principal.png" alt="Pantalla principal de Leads">
-  <!-- left = (x + width) / 1366 * 100 ; top = y / 768 * 100 -->
+  <!-- px = min(x + width + 14, 1366 - 12) ; py = y + height / 2
+       left = px / 1366 * 100 ; top = py / 768 * 100 -->
   <span class="callout" style="left:12.4%; top:31.2%">1</span>
 </div>
+```
+
+```js
+// Converts a boundingBox() of the 1366×768 screenshot into callout percentages.
+// The marker (22 px, centered on the point) goes 14 px to the right of the
+// element and at half its height; it is clamped so it stays inside the image.
+function calloutPos({ x, y, width, height }) {
+  const right = Math.min(x + width, 1366);          // visible right edge
+  const top = Math.max(y, 0), bottom = Math.min(y + height, 768);
+  let px = right + 14;                               // just outside the element
+  if (px > 1366 - 12) px = Math.max(x, 0) - 14;      // no room: go to its left side
+  if (px < 12) px = right - 12;                      // no room either: inside, right edge
+  const py = Math.min(Math.max((top + bottom) / 2, 12), 768 - 12);
+  return { left: +(px / 1366 * 100).toFixed(2), top: +(py / 768 * 100).toFixed(2) };
+}
 ```
 
 Edge cases, applied before converting to percentages:
 
 - **Element wider or taller than the screenshot** (table rows, full
-  width bars): use only its visible part, clamping to the image:
-  `right = min(x + width, 1366) - 12`, `top = max(y, 0)`. For a table
-  row, point at its first visible cell instead of the whole row.
+  width bars): use only its visible part (the function above already
+  clamps to the image). For a table row, point at its first visible
+  cell instead of the whole row.
 - **Element partly or fully outside the 1366×768 capture**: do not
   place a marker on it; describe it in the table with "—" as number
   (as with the pagination at the bottom of a list), or take a separate
   screenshot for it.
 - **Markers too close** (centers less than 28 px apart, typical for
   stacked elements such as a column header above its first row):
-  move the later marker to the element's **left** edge
-  (`left = x / 1366 * 100`), and if they still collide, shift it down
-  by 28 px.
+  move the later marker to the element's **left** side
+  (`px = x - 14`), and if they still collide, shift it down by 28 px.
 
 Check the result in the review screenshots (see "Generating the PDF")
 and adjust a marker by hand only if it still covers the element it
@@ -453,6 +493,38 @@ Then **verify** the result. Do not depend on tools that may be missing:
    - counts the elements wider than their container
      (`.flow, table, figure, svg, img` with
      `scrollWidth > parentElement.clientWidth + 2`), which must be 0;
+   - counts the **diagram labels whose text does not fit in their
+     shape**, which must be 0 (the checks above do not see them, because
+     the text overflows the box, not the page):
+     ```js
+     // Text that spills out of diagram boxes, diamonds or SVG shapes.
+     const textOverflow = await page.evaluate(() => {
+       const out = [];
+       const inside = (a, b, tol = 2) => a.left >= b.left - tol && a.right <= b.right + tol
+         && a.top >= b.top - tol && a.bottom <= b.bottom + tol;
+       // 1) HTML boxes: content larger than the box itself.
+       for (const n of document.querySelectorAll('.node:not(.decision)'))
+         if (n.scrollWidth > n.clientWidth + 1 || n.scrollHeight > n.clientHeight + 1)
+           out.push(n.textContent.trim());
+       // 2) Diamonds: the label must fit inside the rotated square's bounding box.
+       for (const s of document.querySelectorAll('.node.decision > span'))
+         if (!inside(s.getBoundingClientRect(), s.parentElement.getBoundingClientRect()))
+           out.push(s.textContent.trim());
+       // 3) SVG: each <text> must stay inside the shape drawn just before it
+       //    (rect/ellipse/polygon) and inside the SVG itself.
+       for (const t of document.querySelectorAll('svg text')) {
+         const box = t.getBoundingClientRect();
+         const shape = t.previousElementSibling;
+         const ref = shape && /^(rect|ellipse|circle|polygon)$/.test(shape.tagName)
+           ? shape.getBoundingClientRect() : t.ownerSVGElement.getBoundingClientRect();
+         if (!inside(box, ref)) out.push(t.textContent.trim());
+       }
+       return out;
+     });
+     console.log('texto fuera de su figura:', textOverflow.length, textOverflow);
+     ```
+     Fix each label by shortening it, splitting it in two lines
+     (`<br>` or a second `<tspan>`), or widening its shape;
    - saves one screenshot of the cover and one per `h2`/procedure `h3`
      (`clip` 680×980 from the heading's top, `fullPage: true`; 980 px is
      the printable height of A4 with the `@page` margins:
@@ -466,7 +538,8 @@ Then **verify** the result. Do not depend on tools that may be missing:
    print-rendered HTML.
 
 Fix the HTML (Edit inside the output folder) and regenerate the PDF if
-images are missing, anything overflows, a diagram wraps, a callout
+images are missing, anything overflows, a diagram label spills out of
+its shape, a diagram wraps, a callout
 covers its element, or a table is cut.
 
 ## Final reply to the caller
@@ -483,7 +556,9 @@ Keep it short:
   scope never goes unnoticed. Write "ninguna" if the manual covers
   everything visible in the module;
 - test records created and whether they were deleted (identifiers of
-  any left behind);
+  any left behind), including **records the system created by itself
+  in other modules** (module, identifier, URL) and, if any remain, the
+  path of the work folder you kept;
 - the top 3 anomalies and the statements marked "(por confirmar)".
 
 Do not paste the manual into the reply.
