@@ -156,7 +156,11 @@ Le das la **URL**, el **módulo**, la **funcionalidad** a cubrir y el
 
 - `manual-<módulo>.pdf`: el manual final (A4, pie con número de página);
 - `manual-<módulo>.html`: la fuente editable del PDF;
-- `img/`: las capturas, con el elemento a usar resaltado.
+- `img/`: las capturas, con el elemento a usar resaltado;
+- `registros-de-prueba-<módulo>.md`: todo lo que el agente creó en el
+  sistema (sus registros, sus cambios y lo que el sistema generó solo),
+  con enlace y estado. Arriba van los **pendientes de eliminar**, para
+  que una persona los borre. Estos datos **no aparecen en el manual**.
 
 Secciones del manual: portada, índice, introducción, antes de empezar,
 conoce la pantalla (captura con llamadas numeradas), procedimientos paso
@@ -181,7 +185,8 @@ Aun autorizado, **nunca** paga, envía notificaciones a personas reales,
 toca registros que no creó, ejecuta acciones masivas ni cambia usuarios,
 permisos o configuración. En las capturas oculta solo las columnas con
 datos personales que no son suyos (no la tabla entera) y nunca escribe
-credenciales.
+credenciales. Las capturas de depuración o de error también se
+enmascaran, se quedan en la carpeta de trabajo y se borran al terminar.
 
 Otros comportamientos:
 

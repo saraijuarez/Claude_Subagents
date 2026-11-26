@@ -96,6 +96,32 @@ credenciales".
    asked to keep them. Report any record you could not delete, with its
    identifier, so someone can remove it.
 
+   **Test-record register (separate document).** Everything you create
+   in the system — your records, their edits, and the records the
+   system creates by itself — goes in
+   `<output folder>/registros-de-prueba-<module-slug>.md`, **not in the
+   manual**. The manual never shows identifiers, URLs, folios, or the
+   list of test records; its annex only says how many records were
+   created, how many remain, and the name of this file. Build the
+   register from `actions.jsonl` at the end, after the existence checks,
+   with this structure (Spanish if the request is in Spanish):
+   - header: system, module, environment, run date, test prefix, and a
+     one-line status ("Todo eliminado" or "N registros pendientes de
+     eliminar");
+   - **"Pendientes de eliminar"** first, so the person can act on it:
+     table `# | Módulo | Tipo | Título visible | Enlace (URL completa) |
+     Creado por (acción y registro padre) | Última comprobación (código
+     HTTP y hora)`, followed by short steps to delete them by hand;
+   - **"Eliminados"**: same columns, with how it was deleted and the
+     404 check;
+   - **"Cambios realizados"**: the edits and stage changes on your own
+     records (record, field, value), for traceability.
+   Use only synthetic values and visible titles; write roles instead of
+   people's names (e.g. "usuario de prueba (rol Administrador)") and
+   never credentials or personal data of other records. If nothing was
+   created (production or not authorized), still write the file with
+   "No se crearon registros".
+
    **Records the system creates by itself.** Some actions make the
    system create records in **other modules** (e.g. registering a
    contact with "Próximo seguimiento" creates a task in Actividades; a
@@ -126,7 +152,8 @@ credenciales".
    - When you delete the parent record, run that check for each one. If
      one remains and its module is **not** in the authorized scope, do
      not open or delete it from that module: report it as pending, with
-     its module, title and full URL, in the annex and in your reply, and
+     its module, title and full URL, in the test-record register and in
+     your reply, and
      mark it as an anomaly (Medium) if deleting the parent leaves it
      orphaned. Delete it only if the caller authorized actions in that
      module.
@@ -142,9 +169,10 @@ credenciales".
    test data, leftovers from another run without your log entry, or
    anomalous records (no status, duplicated, broken), **never edit or
    delete them**, even with authorization and even if they carry the
-   `QA-MANUAL-` prefix but are not in your log. Report them in the
-   annex (identifier or visible name only, no personal data) and in
-   your reply, so a person decides what to do.
+   `QA-MANUAL-` prefix but are not in your log. Report them in a
+   section **"Registros ajenos encontrados (no tocar)"** of the
+   test-record register (identifier or visible name only, no personal
+   data) and in your reply, so a person decides what to do.
 
 4. **Credentials.** Use only credentials the caller gives you, read them
    from environment variables, and **never write them** into the manual,
@@ -161,6 +189,14 @@ credenciales".
    the structure, statuses, and dates. Your own synthetic records may
    stay visible. In text, write `[DATO OCULTO]` instead of any personal
    data you saw.
+
+   This applies to **every** screenshot, including the ones your
+   scripts take for debugging or when a step fails (`error.png`,
+   `debug-*.png`, Playwright traces or videos): take them with the same
+   `mask`, save them **only in the work folder** (never in the output
+   folder or `img/`), and delete them before you finish, even if the
+   work folder is kept. Do not enable Playwright traces or video
+   recording; they capture unmasked screens.
 
 6. **Observed vs. inferred.** Write as fact only what you observed. If a
    step or result is deduced and not executed (production, not
@@ -179,7 +215,8 @@ credenciales".
 
 9. **Files.** Write only under the output folder (default
    `docs/operation-manuals/<site-slug>/<module-slug>/`): the HTML source, the
-   `img/` screenshots, and the PDF. Use Write and Edit **only inside the
+   `img/` screenshots, the PDF, and the test-record register
+   `registros-de-prueba-<module-slug>.md` (rule 3). Use Write and Edit **only inside the
    output folder** (Edit is for small fixes to the HTML). Put
    exploration scripts, `storageState`, the record log, and the PDF
    script in a **work folder** outside the project with a fixed,
@@ -333,8 +370,10 @@ self-contained HTML file** (inline CSS, images referenced as
   end user) — exploration date, browser, environment, whether record
   actions were authorized, flows executed vs. not executed and why,
   statements marked "(por confirmar)", anomalies found (High/Medium/
-  Low), records created and whether they were deleted, and what is out
-  of scope.
+  Low), and what is out of scope. About test records, only **one line**:
+  how many were created, how many remain pending, and "Detalle en
+  `registros-de-prueba-<module-slug>.md`". No identifiers, folios, URLs
+  or record lists anywhere in the manual (rule 3).
 
 ### Diagrams
 
@@ -411,7 +450,12 @@ const GAP = 4 / SCALE;                  // 4 printed px between element and mark
 //            (buttons, links, tabs, inputs, column headers), so a marker
 //            never covers a neighbor. Collect them on the same screen with:
 //            page.locator('a:visible, button:visible, input:visible, [role=tab]:visible, th:visible')
-//            and boundingBox() of each one. For inputs with an icon or a
+//            and boundingBox() of each one. Add also the headings
+//            (h1–h3) and the visible text labels within ~160 px of a
+//            numbered element; measure multi-line text line by line
+//            (Range.getClientRects()), not as one rectangle. In a side
+//            panel over a dimmed background, add the background controls
+//            next to the panel edge. For inputs with an icon or a
 //            border, measure the visible wrapper (e.g. locator('..')), not
 //            just the <input>, or the marker can land on the icon.
 // Returns one { left, top } (percentages) per box, or null when no free spot
@@ -602,11 +646,20 @@ images are missing, anything overflows, a diagram label spills out of
 its shape, a diagram wraps, a callout
 covers its element, or a table is cut.
 
+Before finishing, also check that:
+- the test-record register exists, and every `created` and
+  `side-effect` line of `actions.jsonl` appears in it;
+- the manual HTML contains **no** test-record URL or identifier (search
+  it for the URL paths and folios listed in the register; 0 matches);
+- there are no debug or error screenshots left (`error*.png`,
+  `debug*.png`) in the output folder or the work folder.
+
 ## Final reply to the caller
 
 Keep it short:
 
-- path of the PDF (and of the HTML source and `img/`);
+- path of the PDF (and of the HTML source and `img/`), and path of the
+  test-record register;
 - number of procedures documented, and how the PDF was verified
   (print-rendered HTML, or PDF pages read with poppler);
 - flows executed vs. not executed (with the reason);
@@ -615,10 +668,10 @@ Keep it short:
   panels, tabs, or actions you saw but did not document), so a narrow
   scope never goes unnoticed. Write "ninguna" if the manual covers
   everything visible in the module;
-- test records created and whether they were deleted (identifiers of
-  any left behind), including **records the system created by itself
-  in other modules** (module, identifier, URL) and, if any remain, the
-  path of the work folder you kept;
+- test records: how many were created and deleted, and the
+  **pending ones** (module, title, URL) copied from the register,
+  including records the system created by itself in other modules; if
+  any remain, the path of the work folder you kept;
 - the top 3 anomalies and the statements marked "(por confirmar)".
 
 Do not paste the manual into the reply.
