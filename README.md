@@ -1,13 +1,13 @@
 # Claude_Subagents
 
-Marketplace de plugins de Claude Code para QA. Contiene cuatro plugins: tres forman una cadena de pruebas y el cuarto genera manuales de usuario.
+Marketplace de plugins de Claude Code para QA. Contiene cuatro plugins: tres forman una cadena de pruebas y el cuarto genera manuales de operación.
 
 | Plugin | Subagente | Qué hace |
 |---|---|---|
 | `qa-doc-reader` | `test-doc-reader` | Lee los documentos de un sistema (requisitos, especificaciones, historias de usuario, contratos de API, manuales, PDFs) y devuelve un resumen de lo importante para probarlo. **Solo lectura**: únicamente puede usar Read, Glob y Grep. |
 | `qa-site-documenter` | `site-functional-documenter` | Recorre un sitio web dentro del alcance que indiques y escribe un documento con el detalle de su funcionamiento: páginas, campos, validaciones, flujos, reglas, anomalías y capturas. |
 | `qa-test-plan-writer` | `test-plan-writer` | Convierte un documento funcional en un **plan de pruebas** con casos de prueba trazables (`.md`) y un `.csv` para importarlos a tu herramienta de gestión de pruebas. No navega ni ejecuta nada. |
-| `qa-user-manual-writer` | `user-manual-writer` | Recorre un **módulo** de un sitio y genera su **manual de usuario en PDF**. En demo/test/staging, si lo autorizas, ejecuta los flujos con registros de prueba propios para documentar qué hace cada uno. |
+| `qa-operation-manual-writer` | `operation-manual-writer` | Recorre un **módulo** de un sitio y genera su **manual de operación en PDF**. En demo/test/staging, si lo autorizas, ejecuta los flujos con registros de prueba propios para documentar qué hace cada uno. |
 
 ```mermaid
 flowchart LR
@@ -149,10 +149,10 @@ Ejemplo de petición:
 Convierte docs/site-docs/saucedemo/saucedemo-funcionamiento.md en un plan de pruebas.
 ```
 
-## `user-manual-writer`: qué entrega
+## `operation-manual-writer`: qué entrega
 
 Le das la **URL**, el **módulo**, la **funcionalidad** a cubrir y el
-**entorno**. Genera en `docs/user-manuals/<sitio>/<módulo>/`:
+**entorno**. Genera en `docs/operation-manuals/<sitio>/<módulo>/`:
 
 - `manual-<módulo>.pdf`: el manual final (A4, pie con número de página);
 - `manual-<módulo>.html`: la fuente editable del PDF;
@@ -194,14 +194,20 @@ Otros comportamientos:
   una persona decida.
 - **Vigila los registros que el sistema crea solo** en otros módulos
   (por ejemplo, la tarea de seguimiento que genera "Registrar
-  contacto"). Los anota y, si quedan huérfanos fuera del módulo
-  autorizado, no los toca: te da el módulo y la URL para que los borre
-  una persona. En ese caso conserva la carpeta de trabajo con el
-  registro de acciones y borra solo la sesión guardada.
+  contacto" o las actividades de cierre). Como no llevan el prefijo
+  `QA-MANUAL-`, guarda su enlace desde la ficha del registro antes de
+  borrarlo. Después comprueba si siguen existiendo con una consulta de
+  solo lectura (404 = borrado), sin entrar al módulo. Si quedan
+  huérfanos fuera del módulo autorizado, no los toca: te da el módulo
+  y la URL para que los borre una persona. En ese caso conserva la
+  carpeta de trabajo con el registro de acciones y borra solo la
+  sesión guardada.
 - **Capturas sin animaciones a medias.** Espera a que terminen las
   animaciones de entrada antes de cada captura.
-- **Números de "Conoce la pantalla" sin tapar el texto.** Cada número
-  va justo a la derecha del elemento, a media altura.
+- **Números de "Conoce la pantalla" sin tapar el texto.** Calcula su
+  lugar a la escala en que se imprime la captura (≈50 %). Prueba a la
+  derecha, a la izquierda, arriba y abajo de cada elemento, y elige el
+  primer lugar que no tape ese elemento, sus vecinos ni otro número.
 - **Navegador en el idioma del manual** (`es-MX`). En Chromium sin
   interfaz algunos avisos del navegador siguen saliendo en inglés; se
   citan tal cual.
@@ -223,13 +229,13 @@ Ejemplo con el comando guiado (pregunta lo que falte y confirma antes
 de empezar):
 
 ``` text
-/generar-manual URL: https://demo.ejemplo.com/ | Módulo: Prospectos | Funcionalidad: alta, búsqueda, edición y baja | Entorno: demo | Acciones: sí | Credenciales: DEMO_USER, DEMO_PASS
+/generar-manual-operacion URL: https://demo.ejemplo.com/ | Módulo: Prospectos | Funcionalidad: alta, búsqueda, edición y baja | Entorno: demo | Acciones: sí | Credenciales: DEMO_USER, DEMO_PASS
 ```
 
 O directamente con el subagente:
 
 ``` text
-@agent-qa-user-manual-writer:user-manual-writer
+@agent-qa-operation-manual-writer:operation-manual-writer
 URL: https://demo.ejemplo.com/
 Módulo: Prospectos
 Funcionalidad: alta, búsqueda, edición y baja de prospectos
@@ -246,10 +252,18 @@ Dentro de Claude Code:
 /plugin install qa-doc-reader@sarai-qa-tools
 /plugin install qa-site-documenter@sarai-qa-tools
 /plugin install qa-test-plan-writer@sarai-qa-tools
-/plugin install qa-user-manual-writer@sarai-qa-tools
+/plugin install qa-operation-manual-writer@sarai-qa-tools
 ```
 
 Elige el alcance **User** para que esté disponible en todos tus proyectos.
+
+Si instalaste la versión anterior, que se llamaba `qa-user-manual-writer`
+(subagente `user-manual-writer`, comando `/generar-manual`), desinstálala
+e instala `qa-operation-manual-writer`:
+
+``` text
+/plugin uninstall qa-user-manual-writer@sarai-qa-tools
+```
 
 Desde la terminal:
 
@@ -270,7 +284,7 @@ claude plugin install qa-test-plan-writer@sarai-qa-tools --scope user
 ```
 
 ``` bash
-claude plugin install qa-user-manual-writer@sarai-qa-tools --scope user
+claude plugin install qa-operation-manual-writer@sarai-qa-tools --scope user
 ```
 
 ## Uso
@@ -308,8 +322,8 @@ la sesión en la nube, nunca en el chat.
 Para los otros subagentes, cambia la ruta por
 `plugins/qa-site-documenter/agents/site-functional-documenter.md`,
 `plugins/qa-test-plan-writer/agents/test-plan-writer.md` o
-`plugins/qa-user-manual-writer/agents/user-manual-writer.md` (y su
-comando `plugins/qa-user-manual-writer/commands/generar-manual.md`).
+`plugins/qa-operation-manual-writer/agents/operation-manual-writer.md` (y su
+comando `plugins/qa-operation-manual-writer/commands/generar-manual-operacion.md`).
 
 En ese caso se invocan sin prefijo (`test-doc-reader`,
 `site-functional-documenter`, `test-plan-writer`). La fuente
@@ -320,7 +334,7 @@ En ese caso se invocan sin prefijo (`test-doc-reader`,
 - `test-doc-reader` no lee `.docx`, `.xlsx` ni `.pptx`: expórtalos a PDF o Markdown.
 - Lee PDFs en bloques de hasta 20 páginas.
 - `site-functional-documenter`, `test-plan-writer` y
-  `user-manual-writer` usan el modelo de tu sesión (`inherit`), porque
+  `operation-manual-writer` usan el modelo de tu sesión (`inherit`), porque
   explorar sitios, ejecutar flujos y diseñar casos es más exigente.
 - `test-doc-reader` usa el modelo `sonnet` para que resumir documentos largos cueste menos.
   Cámbialo en el campo `model` del archivo del agente si lo necesitas.
