@@ -85,7 +85,8 @@ variables **definidas** (nunca sus valores), la audiencia, si se
 conservan los registros de prueba y el idioma de la petición.
 
 Cuando termine, comprueba que existe el PDF en
-`docs/operation-manuals/<sitio>/<módulo>/manual-*.pdf` y el registro
+`docs/operation-manuals/<sitio>/<módulo>/manual-<módulo>.pdf`, su versión
+`manual-<módulo>-sin-anexos.pdf` y el registro
 `registros-de-prueba-<módulo>.md` en la misma carpeta. Si no se creó el PDF,
 **detente** y explica el motivo con lo que reportó el subagente.
 
@@ -93,7 +94,8 @@ Cuando termine, comprueba que existe el PDF en
 
 Responde de forma breve, con:
 
-- la ruta del PDF, del HTML fuente, de la carpeta de capturas y del
+- la ruta del PDF completo, del PDF sin anexos (para usuarios finales),
+  de los HTML fuente, de la carpeta de capturas y del
   registro de pruebas (`registros-de-prueba-<módulo>.md`), que es
   donde la persona encuentra lo que debe eliminar a mano;
 - páginas y procedimientos documentados;

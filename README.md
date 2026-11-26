@@ -154,8 +154,12 @@ Convierte docs/site-docs/saucedemo/saucedemo-funcionamiento.md en un plan de pru
 Le das la **URL**, el **módulo**, la **funcionalidad** a cubrir y el
 **entorno**. Genera en `docs/operation-manuals/<sitio>/<módulo>/`:
 
-- `manual-<módulo>.pdf`: el manual final (A4, pie con número de página);
-- `manual-<módulo>.html`: la fuente editable del PDF;
+- `manual-<módulo>.pdf`: el manual final (A4, pie con número de página),
+  con el anexo de elaboración para quien revisa;
+- `manual-<módulo>-sin-anexos.pdf`: el mismo manual **sin el anexo**,
+  listo para entregar a los usuarios finales;
+- `manual-<módulo>.html` y `manual-<módulo>-sin-anexos.html`: las
+  fuentes editables de los PDF;
 - `img/`: las capturas, con el elemento a usar resaltado;
 - `registros-de-prueba-<módulo>.md`: todo lo que el agente creó en el
   sistema (sus registros, sus cambios y lo que el sistema generó solo),
@@ -170,8 +174,15 @@ del sistema, preguntas frecuentes, glosario y un **anexo de elaboración**
 para quien revisa (flujos ejecutados y no ejecutados, puntos "por
 confirmar", anomalías y registros de prueba creados).
 
-Los diagramas se dibujan en HTML/CSS dentro del PDF, sin Mermaid, para
-que cualquier persona los entienda sin leer código.
+Los diagramas se dibujan en SVG dentro del PDF, sin Mermaid, para que
+cualquier persona los entienda sin leer código. Son **verticales**:
+- cada paso está unido al siguiente con una flecha;
+- en cada decisión, «Sí» sigue hacia abajo y «No» va a la derecha, con
+  una flecha punteada de regreso al paso que hay que corregir;
+- al costado van notas como «WhatsApp o Correo solo registran el
+  contacto: no se envía nada al cliente»;
+- los campos opcionales que disparan algo (por ejemplo, una fecha de
+  seguimiento que crea una tarea) muestran los dos caminos.
 
 Qué puede hacer según el entorno:
 
@@ -219,7 +230,8 @@ Otros comportamientos:
 - **Verifica el PDF sin depender de poppler.** Revisa el HTML con
   estilo de impresión al ancho imprimible de A4 (≈680 px): imágenes
   cargadas, nada que se salga de la página, ningún texto que se salga
-  de los cuadros de los diagramas y capturas de cada sección. Si
+  de las figuras de los diagramas, ninguna figura encimada, ningún
+  diagrama más alto que una página y capturas de cada sección. Si
   `pdftoppm` está instalado, también lee las páginas del PDF.
 - **Mensajes del navegador.** Las confirmaciones (`confirm`, `alert`)
   se citan textualmente. Los avisos de validación y los que

@@ -366,8 +366,9 @@ self-contained HTML file** (inline CSS, images referenced as
 - **8. Preguntas frecuentes** — only questions answered by what you
   observed.
 - **9. Glosario** — module-specific terms.
-- **Anexo A. Notas de elaboración** (for the internal reviewer, not the
-  end user) — exploration date, browser, environment, whether record
+- **Anexo A. Notas de elaboración** (`<h2 id="anexo">`, always the last
+  section; for the internal reviewer, not the end user, and removed in
+  the `-sin-anexos` copy) — exploration date, browser, environment, whether record
   actions were authorized, flows executed vs. not executed and why,
   statements marked "(por confirmar)", anomalies found (High/Medium/
   Low), and what is out of scope. About test records, only **one line**:
@@ -377,41 +378,172 @@ self-contained HTML file** (inline CSS, images referenced as
 
 ### Diagrams
 
-Draw every flow and state diagram with **HTML/CSS or inline SVG** inside
-the HTML, so it prints in the PDF and anyone can read it without knowing
-code. **Never use Mermaid.** Keep them simple: rounded boxes for steps,
-a diamond (rotated square) for decisions with "Sí/No" labels, arrows
-between boxes, start/end in a different color.
+Draw every procedure flow as a **vertical inline SVG** generated with
+`flowsvg.js` (below), so it prints in the PDF and anyone can read it
+without knowing code. **Never use Mermaid**, and do not build flows from
+HTML boxes in a row: in the fourth test they split into rows joined by
+"↓ continúa", the decision diamond lost its incoming arrow and the "No"
+branch did not show where to go back.
 
-Layout rules, so the diagram never wraps unpredictably on A4:
+What the generator draws:
 
-- **At most 5 nodes per row** (counting the decision diamond). Each row
-  is its own `.flow` with `flex-wrap: nowrap`; continue on a new row
-  with a `.flow-continue` arrow ("↓ continúa").
-- **At most ~8 nodes per diagram**; split longer flows into two
-  diagrams.
-- A decision's **"Sí" path continues to the right**; its **"No" path
-  goes directly below the decision** inside a `.decision-col`, so the
-  reader sees which decision it belongs to.
-- For life cycles with loops or back-transitions, use an **inline SVG**
-  with a fixed `viewBox` instead of boxes.
+- **One column, top to bottom**: start pill → steps (rounded boxes) →
+  end pill, each joined to the next with an arrow, so it never wraps.
+- **Decisions** as diamonds: **"Sí" continues down**, **"No" goes right**
+  to a side box:
+  - `kind: 'error'` (red): with `back: '<id>'` a dashed arrow returns to
+    the step the user must correct;
+  - `kind: 'stop'` (gray pill): the flow ends there (e.g. "Cancelar");
+  - `kind: 'alt'` (blue-gray): an alternative path; with
+    `rejoin: '<id>'` a dashed arrow joins a later step.
+  Custom labels: `yes: 'Sí: Tab'`, `no: { label: 'No: Esc', … }`.
+- **Side notes** (`note:` on a step, dashed amber box on the left) for
+  what the user must know at that step and is not an action, e.g.
+  "Elegir canal WhatsApp o Correo solo registra el contacto: no envía
+  nada al cliente".
+- **Steps not executed** (`k: 'pending'`, dashed gray box), with the
+  reason in the text.
+- **Optional fields that trigger something** (e.g. a follow-up date that
+  creates a task) get their own decision and both branches, not just an
+  "(Opcional)" box: the reader must see what happens in each case.
 
-Pattern:
+Write `flowsvg.js` to the work folder, define one diagram per procedure
+and insert each SVG as `<div class="flowchart">SVG</div>` right after the
+procedure's "Antes de empezar". Keep diagrams under ~980 px high (about
+14 boxes); split a longer flow into two diagrams.
 
-```html
-<div class="flow">
-  <div class="node start">Inicio</div><div class="arrow">→</div>
-  <div class="node">Clic en «Nuevo»</div><div class="arrow">→</div>
-  <div class="node">Capturar datos</div><div class="arrow">→</div>
-  <div class="decision-col">
-    <div class="node decision"><span>¿Datos válidos?</span></div>
-    <div class="arrow down">No ↓</div>
-    <div class="node error">Corrige el campo marcado</div>
-  </div>
-  <div class="arrow">Sí →</div>
-  <div class="node end">Lead creado</div>
-</div>
+```js
+// flowsvg.js — Draws vertical flow diagrams as inline SVG for the printed manual.
+// Step model, in order:
+//   { k: 'start'|'step'|'end'|'pending'|'decision', t: 'text', id?: 'key', note?: 'text' }
+//   decision: yes?: 'Sí'  (label of the down arrow)
+//             no: { label?: 'No', t: 'text', kind: 'error'|'stop'|'alt',
+//                   back?: 'id of an earlier step'   (error: dashed arrow back)
+//                   rejoin?: 'id of a later step' }  (alt: dashed arrow forward)
+// Text width is estimated per character; review.js then checks in the browser
+// that no label spills out of its shape.
+const FS = 12.5, LH = 15.5;      // font size and line height (px; prints at 1:1)
+const CHAR = FS * 0.5;           // estimated average character width
+const GAP = 26;                  // vertical space between steps (holds the arrow)
+const NW = 220, SW = 180, NOTE_W = 165, DW = 200; // main / side / note column, diamond width
+const C = { navy: '#0b3a6e', red: '#b42318', redBg: '#fef3f2', bg: '#f8fafc',
+            gray: '#6b7280', noteBg: '#fff7ed', noteBd: '#f59e0b', altBg: '#eef2f7' };
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// Splits text into lines that fit maxPx (estimated).
+function wrap(text, maxPx) {
+  const max = Math.max(4, Math.floor(maxPx / CHAR)), out = [];
+  let line = '';
+  for (const w of String(text).split(/\s+/).filter(Boolean)) {
+    if (!line) line = w;
+    else if ((line + ' ' + w).length <= max) line += ' ' + w;
+    else { out.push(line); line = w; }
+  }
+  if (line) out.push(line);
+  return out;
+}
+// Multi-line <text> centered on (cx, cy).
+function textBlock(lines, cx, cy, fill) {
+  const top = cy - (lines.length * LH) / 2 + LH * 0.78;
+  return `<text x="${cx}" text-anchor="middle" font-size="${FS}" fill="${fill}">` +
+    lines.map((l, i) => `<tspan x="${cx}" y="${(top + i * LH).toFixed(1)}">${esc(l)}</tspan>`).join('') + '</text>';
+}
+const boxH = n => Math.max(32, n * LH + 14);   // height of a box with n lines
+
+// def = { key: 'p1', steps: [...] }; uid must be unique in the page (arrowhead id).
+function render(def, uid) {
+  const hasNotes = def.steps.some(s => s.note), hasSide = def.steps.some(s => s.no);
+  // Columns: [notes] [main] [side branches]; the SVG is only as wide as needed.
+  const mainX = 8 + (hasNotes ? NOTE_W + 26 : 0), CX = mainX + NW / 2;
+  const sideX = mainX + NW + (hasSide ? 74 : 0);
+  const W = (hasSide ? sideX + SW : mainX + NW) + 8;
+  const parts = [], edges = [], pos = {}, links = [];
+  let y = 8, prevBottom = null, prevYes = null;
+  const arrow = (x1, y1, x2, y2) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${C.navy}" stroke-width="1.6" marker-end="url(#ah-${uid})"/>`;
+  const label = (x, ly, t, anchor = 'start') => `<text x="${x}" y="${ly}" font-size="${FS - 1}" font-weight="700" fill="${C.navy}" text-anchor="${anchor}">${esc(t)}</text>`;
+
+  for (const s of def.steps) {
+    const top = y; let bottom, cy, shapeBottom;
+    if (s.k === 'decision') {
+      const lines = wrap(s.t, DW * 0.48);             // a diamond only fits text in its middle
+      const DH = Math.max(70, lines.length * LH + 44);
+      cy = top + DH / 2; bottom = shapeBottom = top + DH;
+      const pts = [[CX, top], [CX + DW / 2, cy], [CX, bottom], [CX - DW / 2, cy]].map(p => p.join(',')).join(' ');
+      parts.push(`<g class="n"><polygon points="${pts}" fill="${C.bg}" stroke="${C.navy}" stroke-width="2"/>${textBlock(lines, CX, cy, C.navy)}</g>`);
+      if (s.no) {                                      // side branch ("No")
+        const kind = s.no.kind || 'error', sl = wrap(s.no.t, SW - 22), sh = boxH(sl.length), sTop = cy - sh / 2;
+        const fill = kind === 'error' ? C.redBg : kind === 'alt' ? C.altBg : '#fff';
+        const stroke = kind === 'error' ? C.red : kind === 'alt' ? C.navy : C.gray;
+        parts.push(`<g class="n"><rect x="${sideX}" y="${sTop}" width="${SW}" height="${sh}" rx="${kind === 'stop' ? Math.min(sh / 2, 18) : 8}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>` +
+          textBlock(sl, sideX + SW / 2, cy, kind === 'error' ? C.red : '#1f2937') + '</g>');
+        edges.push(arrow(CX + DW / 2, cy, sideX - 3, cy));
+        parts.push(label((CX + DW / 2 + sideX) / 2, cy - 6, s.no.label || 'No', 'middle'));
+        if (s.no.back) links.push({ x: sideX + SW / 2, y: sTop, to: s.no.back });         // goes up
+        if (s.no.rejoin) links.push({ x: sideX + SW / 2, y: sTop + sh, to: s.no.rejoin }); // goes down
+        bottom = Math.max(bottom, sTop + sh);
+      }
+    } else {
+      const lines = wrap(s.t, NW - 24), h = boxH(lines.length);
+      cy = top + h / 2; bottom = shapeBottom = top + h;
+      const pill = s.k === 'start' || s.k === 'end', pend = s.k === 'pending';
+      const w = s.k === 'start' ? 120 : NW, x = CX - w / 2;
+      parts.push(`<g class="n"><rect x="${x}" y="${top}" width="${w}" height="${h}" rx="${pill ? Math.min(h / 2, 18) : 8}" ` +
+        `fill="${pill ? C.navy : pend ? '#fff' : C.bg}" stroke="${pend ? C.gray : C.navy}" stroke-width="2"${pend ? ' stroke-dasharray="6 4"' : ''}/>` +
+        textBlock(lines, CX, cy, pill ? '#fff' : pend ? C.gray : '#1f2937') + '</g>');
+      if (s.note) {                                    // side note on the left, dotted link
+        const nl = wrap(s.note, NOTE_W - 18), nh = boxH(nl.length), nTop = cy - nh / 2;
+        parts.push(`<g class="n"><rect x="8" y="${nTop}" width="${NOTE_W}" height="${nh}" rx="4" fill="${C.noteBg}" stroke="${C.noteBd}" stroke-width="1.5" stroke-dasharray="4 3"/>${textBlock(nl, 8 + NOTE_W / 2, cy, '#78350f')}</g>`);
+        edges.push(`<line x1="${8 + NOTE_W}" y1="${cy}" x2="${x}" y2="${cy}" stroke="${C.noteBd}" stroke-width="1.5" stroke-dasharray="3 3"/>`);
+        bottom = Math.max(bottom, nTop + nh);
+      }
+    }
+    if (prevBottom !== null) {                          // arrow from the previous step
+      edges.push(arrow(CX, prevBottom, CX, top - 3));
+      if (prevYes) parts.push(label(CX + 8, (prevBottom + top) / 2 + 4, prevYes));
+    }
+    prevBottom = shapeBottom;
+    prevYes = s.k === 'decision' ? (s.yes || 'Sí') : null;
+    if (s.id) pos[s.id] = { cy };
+    y = bottom + GAP;
+  }
+  // Dashed back / rejoin arrows, routed through the right of the main column.
+  for (const l of links) {
+    const t = pos[l.to];
+    if (!t) throw new Error(`${def.key}: unknown step id "${l.to}"`);
+    edges.push(`<path d="M${l.x},${l.y} L${l.x},${t.cy} L${mainX + NW + 3},${t.cy}" fill="none" stroke="${C.navy}" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ah-${uid})"/>`);
+  }
+  const H = Math.ceil(y - GAP + 8);
+  return `<svg class="flowsvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" ` +
+    `aria-label="${esc(def.steps.map(s => s.t).join(' → '))}" font-family="Segoe UI, Arial, sans-serif">` +
+    `<defs><marker id="ah-${uid}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${C.navy}"/></marker></defs>` +
+    edges.join('') + parts.join('') + '</svg>';
+}
+module.exports = { render };
 ```
+
+Example (a step with a note, a validation that returns to a step, and
+an optional field with both outcomes):
+
+```js
+const { render } = require('./flowsvg');
+const svg = render({ key: 'p11', steps: [
+  { k: 'start', t: 'Inicio' },
+  { k: 'step', t: 'Elegir Canal y Resultado', id: 'can',
+    note: 'WhatsApp o Correo solo registran el contacto: no se envía nada al cliente' },
+  { k: 'step', t: '(Opcional) Elegir fecha en «Próximo seguimiento»' },
+  { k: 'step', t: 'Clic en «Guardar contacto»' },
+  { k: 'decision', t: '¿Datos válidos?', no: { t: 'El navegador marca el campo', kind: 'error', back: 'can' } },
+  { k: 'decision', t: '¿Pusiste fecha en Próximo seguimiento?', no: { t: 'No se crea ninguna tarea', kind: 'alt', rejoin: 'fin' } },
+  { k: 'step', t: 'Se crea la tarea de seguimiento para ese día' },
+  { k: 'end', t: 'Todo queda en «Actividad»', id: 'fin' },
+] }, 'p11');
+// html: <div class="flowchart">${svg}</div>
+```
+
+For the life-cycle (states) diagram, which has loops and
+back-transitions, draw a hand-made inline SVG with a fixed `viewBox`
+and the same colors; group each shape with its label in `<g class="n">`
+so the review below checks it too.
 
 ### Callouts on "Conoce la pantalla"
 
@@ -515,27 +647,16 @@ Include in the `<style>` at least:
 body { font-family: "Segoe UI", Arial, sans-serif; font-size: 11pt; color: #1f2937; line-height: 1.45; }
 h1, h2 { color: #0b3a6e; } h2 { border-bottom: 2px solid #0b3a6e; padding-bottom: 4px; }
 .cover { height: 250mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
-h2 { page-break-before: always; } .procedure, figure, table, .flow { page-break-inside: avoid; }
+h2 { page-break-before: always; } .procedure, figure, table, .flowchart { page-break-inside: avoid; }
 img { max-width: 100%; border: 1px solid #d1d5db; border-radius: 4px; }
 figcaption { font-size: 9pt; color: #6b7280; text-align: center; }
 table { width: 100%; border-collapse: collapse; font-size: 9.5pt; } th, td { border: 1px solid #d1d5db; padding: 5px 7px; text-align: left; vertical-align: top; } th { background: #eef2f7; }
 .tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 8.5pt; background: #fde68a; color: #78350f; }
-.flow { display: flex; flex-wrap: nowrap; align-items: flex-start; gap: 6px; margin: 10px 0; }
-.flow:not(:has(.decision-col)) { align-items: center; }
-/* With a decision diamond, align boxes and arrows with the diamond's center. */
-.flow:has(.decision-col) > .node { margin-top: 34px; }
-.flow:has(.decision-col) > .arrow { margin-top: 44px; }
-.flow-continue { text-align: center; color: #0b3a6e; font-size: 9pt; margin: -4px 0 4px; }
-.decision-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.arrow.down { margin: 0; }
-.node.error { border-color: #b42318; background: #fef3f2; max-width: 150px; text-align: center; }
+/* Flow diagrams: SVG from flowsvg.js, centered, printed at 1:1 and never wider than the page. */
+.flowchart { margin: 10px 0 12px; text-align: center; page-break-inside: avoid; }
+.flowchart svg { max-width: 100%; height: auto; }
 .callouts { position: relative; } .callouts img { display: block; }
 .callout { position: absolute; transform: translate(-50%, -50%); width: 22px; height: 22px; border-radius: 50%; background: #E4002B; color: #fff; font-size: 9pt; font-weight: 700; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; }
-.node { border: 2px solid #0b3a6e; border-radius: 8px; padding: 6px 10px; font-size: 9.5pt; background: #f8fafc; }
-.node.start, .node.end { background: #0b3a6e; color: #fff; border-radius: 18px; }
-.node.decision { transform: rotate(45deg); width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; margin: 14px; }
-.node.decision > span { transform: rotate(-45deg); text-align: center; font-size: 8.5pt; }
-.arrow { font-weight: bold; color: #0b3a6e; font-size: 10pt; }
 ```
 
 ## Generating the PDF
@@ -595,40 +716,48 @@ Then **verify** the result. Do not depend on tools that may be missing:
      (`[...document.images].filter(i => !i.complete || !i.naturalWidth)`
      must be empty);
    - counts the elements wider than their container
-     (`.flow, table, figure, svg, img` with
+     (`.flowchart, table, figure, svg, img` with
      `scrollWidth > parentElement.clientWidth + 2`), which must be 0;
-   - counts the **diagram labels whose text does not fit in their
-     shape**, which must be 0 (the checks above do not see them, because
-     the text overflows the box, not the page):
+   - checks every diagram: **no label spills out of its shape, no two
+     shapes overlap, and no diagram is taller than one page**. All must
+     be 0 (the width checks above do not see these):
      ```js
-     // Text that spills out of diagram boxes, diamonds or SVG shapes.
-     const textOverflow = await page.evaluate(() => {
+     // Diagram review: each <g class="n"> holds one shape and its label.
+     const diagramIssues = await page.evaluate(() => {
        const out = [];
-       const inside = (a, b, tol = 2) => a.left >= b.left - tol && a.right <= b.right + tol
-         && a.top >= b.top - tol && a.bottom <= b.bottom + tol;
-       // 1) HTML boxes: content larger than the box itself.
-       for (const n of document.querySelectorAll('.node:not(.decision)'))
-         if (n.scrollWidth > n.clientWidth + 1 || n.scrollHeight > n.clientHeight + 1)
-           out.push(n.textContent.trim());
-       // 2) Diamonds: the label must fit inside the rotated square's bounding box.
-       for (const s of document.querySelectorAll('.node.decision > span'))
-         if (!inside(s.getBoundingClientRect(), s.parentElement.getBoundingClientRect()))
-           out.push(s.textContent.trim());
-       // 3) SVG: each <text> must stay inside the shape drawn just before it
-       //    (rect/ellipse/polygon) and inside the SVG itself.
-       for (const t of document.querySelectorAll('svg text')) {
-         const box = t.getBoundingClientRect();
-         const shape = t.previousElementSibling;
-         const ref = shape && /^(rect|ellipse|circle|polygon)$/.test(shape.tagName)
-           ? shape.getBoundingClientRect() : t.ownerSVGElement.getBoundingClientRect();
-         if (!inside(box, ref)) out.push(t.textContent.trim());
-       }
+       document.querySelectorAll('.flowchart svg, svg:has(g.n)').forEach(svg => {
+         const where = svg.closest('section')?.id || 'svg';
+         if (svg.getBoundingClientRect().height > 980) out.push(`${where}: taller than one page`);
+         const shapes = [];
+         svg.querySelectorAll('g.n').forEach(g => {
+           const shape = g.querySelector('rect, polygon, ellipse, circle');
+           const text = g.querySelector('text');
+           if (!shape || !text) return;
+           const s = shape.getBBox(), t = text.getBBox();
+           shapes.push({ s, label: g.textContent.slice(0, 40) });
+           if (shape.tagName === 'polygon') {
+             // Diamond: each text corner must satisfy |dx|/half-width + |dy|/half-height <= 1.
+             const cx = s.x + s.width / 2, cy = s.y + s.height / 2;
+             const out1 = [[t.x, t.y], [t.x + t.width, t.y], [t.x, t.y + t.height], [t.x + t.width, t.y + t.height]]
+               .some(([x, y]) => Math.abs(x - cx) / (s.width / 2) + Math.abs(y - cy) / (s.height / 2) > 1);
+             if (out1) out.push(`${where}: label out of diamond «${g.textContent}»`);
+           } else if (t.x < s.x + 2 || t.y < s.y + 1 || t.x + t.width > s.x + s.width - 2 || t.y + t.height > s.y + s.height - 1) {
+             out.push(`${where}: label out of box «${g.textContent.slice(0, 40)}»`);
+           }
+         });
+         // Overlapping shapes (bounding boxes).
+         for (let a = 0; a < shapes.length; a++) for (let b = a + 1; b < shapes.length; b++) {
+           const A = shapes[a].s, B = shapes[b].s;
+           if (A.x < B.x + B.width && B.x < A.x + A.width && A.y < B.y + B.height && B.y < A.y + A.height)
+             out.push(`${where}: «${shapes[a].label}» overlaps «${shapes[b].label}»`);
+         }
+       });
        return out;
      });
-     console.log('texto fuera de su figura:', textOverflow.length, textOverflow);
+     console.log('diagramas con problemas:', diagramIssues.length, diagramIssues);
      ```
-     Fix each label by shortening it, splitting it in two lines
-     (`<br>` or a second `<tspan>`), or widening its shape;
+     Fix a label by shortening it or lowering `CHAR`'s estimate margin
+     (wrap earlier), a tall diagram by splitting it in two;
    - saves one screenshot of the cover and one per `h2`/procedure `h3`
      (`clip` 680×980 from the heading's top, `fullPage: true`; 980 px is
      the printable height of A4 with the `@page` margins:
@@ -643,8 +772,37 @@ Then **verify** the result. Do not depend on tools that may be missing:
 
 Fix the HTML (Edit inside the output folder) and regenerate the PDF if
 images are missing, anything overflows, a diagram label spills out of
-its shape, a diagram wraps, a callout
-covers its element, or a table is cut.
+its shape, two diagram shapes overlap, a diagram is taller than a page,
+a callout covers its element, or a table is cut.
+
+### Version without annexes
+
+After the full manual passes the review, also produce the version for
+end users, **without "Anexo A"** (internal notes and anomalies):
+
+```js
+// no-annex.js — Builds the end-user copy of the manual without the annex.
+// Removes everything from the annex heading to </body>, and its index entry.
+// Usage: node no-annex.js <manual.html> <manual-sin-anexos.html>
+const fs = require('fs');
+const [src, dst] = process.argv.slice(2);
+let h = fs.readFileSync(src, 'utf8');
+// Cut from the annex heading, including an HTML comment right before it.
+const a = h.search(/(?:<!--(?:(?!-->)[\s\S])*-->\s*)?<h2[^>]*id="anexo"/), b = h.lastIndexOf('</body>');
+if (a < 0 || b < a) throw new Error('Annex heading <h2 id="anexo"> not found');
+h = h.slice(0, a) + h.slice(b);
+h = h.replace(/\s*<li><a href="#anexo">[^<]*<\/a><\/li>/, '');
+// Nothing may still point to or mention the annex.
+const left = (h.match(/anexo/gi) || []).length;
+if (left) throw new Error(`${left} mentions of «anexo» remain`);
+fs.writeFileSync(dst, h);
+```
+
+Give the annex heading `id="anexo"` and keep it as the **last** section,
+and do not refer to it from the body ("ver Anexo A"), so this cut is
+clean. Then run `make-pdf.js` on the new HTML with the same footer.
+Output: `<output folder>/manual-<module-slug>-sin-anexos.html` and
+`.pdf`.
 
 Before finishing, also check that:
 - the test-record register exists, and every `created` and
@@ -658,8 +816,8 @@ Before finishing, also check that:
 
 Keep it short:
 
-- path of the PDF (and of the HTML source and `img/`), and path of the
-  test-record register;
+- path of the PDF, of the PDF **without annexes** (for end users), of
+  the HTML sources and `img/`, and of the test-record register;
 - number of procedures documented, and how the PDF was verified
   (print-rendered HTML, or PDF pages read with poppler);
 - flows executed vs. not executed (with the reason);
