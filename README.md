@@ -1,13 +1,13 @@
 # Claude_Subagents
 
-Marketplace de plugins de Claude Code para QA. Contiene cuatro plugins: tres forman una cadena de pruebas y el cuarto genera manuales de usuario.
+Marketplace de plugins de Claude Code para QA. Contiene cuatro plugins: tres forman una cadena de pruebas y el cuarto genera manuales de operación.
 
 | Plugin | Subagente | Qué hace |
 |---|---|---|
 | `qa-doc-reader` | `test-doc-reader` | Lee los documentos de un sistema (requisitos, especificaciones, historias de usuario, contratos de API, manuales, PDFs) y devuelve un resumen de lo importante para probarlo. **Solo lectura**: únicamente puede usar Read, Glob y Grep. |
 | `qa-site-documenter` | `site-functional-documenter` | Recorre un sitio web dentro del alcance que indiques y escribe un documento con el detalle de su funcionamiento: páginas, campos, validaciones, flujos, reglas, anomalías y capturas. |
 | `qa-test-plan-writer` | `test-plan-writer` | Convierte un documento funcional en un **plan de pruebas** con casos de prueba trazables (`.md`) y un `.csv` para importarlos a tu herramienta de gestión de pruebas. No navega ni ejecuta nada. |
-| `qa-user-manual-writer` | `user-manual-writer` | Recorre un **módulo** de un sitio y genera su **manual de usuario en PDF**. En demo/test/staging, si lo autorizas, ejecuta los flujos con registros de prueba propios para documentar qué hace cada uno. |
+| `qa-operation-manual-writer` | `operation-manual-writer` | Recorre un **módulo** de un sitio y genera su **manual de operación en PDF**. En demo/test/staging, si lo autorizas, ejecuta los flujos con registros de prueba propios para documentar qué hace cada uno. |
 
 ```mermaid
 flowchart LR
@@ -149,14 +149,22 @@ Ejemplo de petición:
 Convierte docs/site-docs/saucedemo/saucedemo-funcionamiento.md en un plan de pruebas.
 ```
 
-## `user-manual-writer`: qué entrega
+## `operation-manual-writer`: qué entrega
 
 Le das la **URL**, el **módulo**, la **funcionalidad** a cubrir y el
-**entorno**. Genera en `docs/user-manuals/<sitio>/<módulo>/`:
+**entorno**. Genera en `docs/operation-manuals/<sitio>/<módulo>/`:
 
-- `manual-<módulo>.pdf`: el manual final (A4, pie con número de página);
-- `manual-<módulo>.html`: la fuente editable del PDF;
-- `img/`: las capturas, con el elemento a usar resaltado.
+- `manual-<módulo>.pdf`: el manual final (A4, pie con número de página),
+  con el anexo de elaboración para quien revisa;
+- `manual-<módulo>-sin-anexos.pdf`: el mismo manual **sin el anexo**,
+  listo para entregar a los usuarios finales;
+- `manual-<módulo>.html` y `manual-<módulo>-sin-anexos.html`: las
+  fuentes editables de los PDF;
+- `img/`: las capturas, con el elemento a usar resaltado;
+- `registros-de-prueba-<módulo>.md`: todo lo que el agente creó en el
+  sistema (sus registros, sus cambios y lo que el sistema generó solo),
+  con enlace y estado. Arriba van los **pendientes de eliminar**, para
+  que una persona los borre. Estos datos **no aparecen en el manual**.
 
 Secciones del manual: portada, índice, introducción, antes de empezar,
 conoce la pantalla (captura con llamadas numeradas), procedimientos paso
@@ -166,8 +174,15 @@ del sistema, preguntas frecuentes, glosario y un **anexo de elaboración**
 para quien revisa (flujos ejecutados y no ejecutados, puntos "por
 confirmar", anomalías y registros de prueba creados).
 
-Los diagramas se dibujan en HTML/CSS dentro del PDF, sin Mermaid, para
-que cualquier persona los entienda sin leer código.
+Los diagramas se dibujan en SVG dentro del PDF, sin Mermaid, para que
+cualquier persona los entienda sin leer código. Son **verticales**:
+- cada paso está unido al siguiente con una flecha;
+- en cada decisión, «Sí» sigue hacia abajo y «No» va a la derecha, con
+  una flecha punteada de regreso al paso que hay que corregir;
+- al costado van notas como «WhatsApp o Correo solo registran el
+  contacto: no se envía nada al cliente»;
+- los campos opcionales que disparan algo (por ejemplo, una fecha de
+  seguimiento que crea una tarea) muestran los dos caminos.
 
 Qué puede hacer según el entorno:
 
@@ -181,7 +196,8 @@ Aun autorizado, **nunca** paga, envía notificaciones a personas reales,
 toca registros que no creó, ejecuta acciones masivas ni cambia usuarios,
 permisos o configuración. En las capturas oculta solo las columnas con
 datos personales que no son suyos (no la tabla entera) y nunca escribe
-credenciales.
+credenciales. Las capturas de depuración o de error también se
+enmascaran, se quedan en la carpeta de trabajo y se borran al terminar.
 
 Otros comportamientos:
 
@@ -194,21 +210,28 @@ Otros comportamientos:
   una persona decida.
 - **Vigila los registros que el sistema crea solo** en otros módulos
   (por ejemplo, la tarea de seguimiento que genera "Registrar
-  contacto"). Los anota y, si quedan huérfanos fuera del módulo
-  autorizado, no los toca: te da el módulo y la URL para que los borre
-  una persona. En ese caso conserva la carpeta de trabajo con el
-  registro de acciones y borra solo la sesión guardada.
+  contacto" o las actividades de cierre). Como no llevan el prefijo
+  `QA-MANUAL-`, guarda su enlace desde la ficha del registro antes de
+  borrarlo. Después comprueba si siguen existiendo con una consulta de
+  solo lectura (404 = borrado), sin entrar al módulo. Si quedan
+  huérfanos fuera del módulo autorizado, no los toca: te da el módulo
+  y la URL para que los borre una persona. En ese caso conserva la
+  carpeta de trabajo con el registro de acciones y borra solo la
+  sesión guardada.
 - **Capturas sin animaciones a medias.** Espera a que terminen las
   animaciones de entrada antes de cada captura.
-- **Números de "Conoce la pantalla" sin tapar el texto.** Cada número
-  va justo a la derecha del elemento, a media altura.
+- **Números de "Conoce la pantalla" sin tapar el texto.** Calcula su
+  lugar a la escala en que se imprime la captura (≈50 %). Prueba a la
+  derecha, a la izquierda, arriba y abajo de cada elemento, y elige el
+  primer lugar que no tape ese elemento, sus vecinos ni otro número.
 - **Navegador en el idioma del manual** (`es-MX`). En Chromium sin
   interfaz algunos avisos del navegador siguen saliendo en inglés; se
   citan tal cual.
 - **Verifica el PDF sin depender de poppler.** Revisa el HTML con
   estilo de impresión al ancho imprimible de A4 (≈680 px): imágenes
   cargadas, nada que se salga de la página, ningún texto que se salga
-  de los cuadros de los diagramas y capturas de cada sección. Si
+  de las figuras de los diagramas, ninguna figura encimada, ningún
+  diagrama más alto que una página y capturas de cada sección. Si
   `pdftoppm` está instalado, también lee las páginas del PDF.
 - **Mensajes del navegador.** Las confirmaciones (`confirm`, `alert`)
   se citan textualmente. Los avisos de validación y los que
@@ -223,13 +246,13 @@ Ejemplo con el comando guiado (pregunta lo que falte y confirma antes
 de empezar):
 
 ``` text
-/generar-manual URL: https://demo.ejemplo.com/ | Módulo: Prospectos | Funcionalidad: alta, búsqueda, edición y baja | Entorno: demo | Acciones: sí | Credenciales: DEMO_USER, DEMO_PASS
+/generar-manual-operacion URL: https://demo.ejemplo.com/ | Módulo: Prospectos | Funcionalidad: alta, búsqueda, edición y baja | Entorno: demo | Acciones: sí | Credenciales: DEMO_USER, DEMO_PASS
 ```
 
 O directamente con el subagente:
 
 ``` text
-@agent-qa-user-manual-writer:user-manual-writer
+@agent-qa-operation-manual-writer:operation-manual-writer
 URL: https://demo.ejemplo.com/
 Módulo: Prospectos
 Funcionalidad: alta, búsqueda, edición y baja de prospectos
@@ -246,10 +269,18 @@ Dentro de Claude Code:
 /plugin install qa-doc-reader@sarai-qa-tools
 /plugin install qa-site-documenter@sarai-qa-tools
 /plugin install qa-test-plan-writer@sarai-qa-tools
-/plugin install qa-user-manual-writer@sarai-qa-tools
+/plugin install qa-operation-manual-writer@sarai-qa-tools
 ```
 
 Elige el alcance **User** para que esté disponible en todos tus proyectos.
+
+Si instalaste la versión anterior, que se llamaba `qa-user-manual-writer`
+(subagente `user-manual-writer`, comando `/generar-manual`), desinstálala
+e instala `qa-operation-manual-writer`:
+
+``` text
+/plugin uninstall qa-user-manual-writer@sarai-qa-tools
+```
 
 Desde la terminal:
 
@@ -270,7 +301,7 @@ claude plugin install qa-test-plan-writer@sarai-qa-tools --scope user
 ```
 
 ``` bash
-claude plugin install qa-user-manual-writer@sarai-qa-tools --scope user
+claude plugin install qa-operation-manual-writer@sarai-qa-tools --scope user
 ```
 
 ## Uso
@@ -308,8 +339,8 @@ la sesión en la nube, nunca en el chat.
 Para los otros subagentes, cambia la ruta por
 `plugins/qa-site-documenter/agents/site-functional-documenter.md`,
 `plugins/qa-test-plan-writer/agents/test-plan-writer.md` o
-`plugins/qa-user-manual-writer/agents/user-manual-writer.md` (y su
-comando `plugins/qa-user-manual-writer/commands/generar-manual.md`).
+`plugins/qa-operation-manual-writer/agents/operation-manual-writer.md` (y su
+comando `plugins/qa-operation-manual-writer/commands/generar-manual-operacion.md`).
 
 En ese caso se invocan sin prefijo (`test-doc-reader`,
 `site-functional-documenter`, `test-plan-writer`). La fuente
@@ -320,7 +351,7 @@ En ese caso se invocan sin prefijo (`test-doc-reader`,
 - `test-doc-reader` no lee `.docx`, `.xlsx` ni `.pptx`: expórtalos a PDF o Markdown.
 - Lee PDFs en bloques de hasta 20 páginas.
 - `site-functional-documenter`, `test-plan-writer` y
-  `user-manual-writer` usan el modelo de tu sesión (`inherit`), porque
+  `operation-manual-writer` usan el modelo de tu sesión (`inherit`), porque
   explorar sitios, ejecutar flujos y diseñar casos es más exigente.
 - `test-doc-reader` usa el modelo `sonnet` para que resumir documentos largos cueste menos.
   Cámbialo en el campo `model` del archivo del agente si lo necesitas.

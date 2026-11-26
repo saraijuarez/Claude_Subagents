@@ -1,9 +1,9 @@
 ---
-description: Genera el manual de usuario (PDF) de un módulo de un sitio web con el subagente user-manual-writer.
+description: Genera el manual de operación (PDF) de un módulo de un sitio web con el subagente operation-manual-writer.
 argument-hint: "[URL: <url> | Módulo: <módulo> | Funcionalidad: <qué cubrir> | Entorno: <producción/staging/test/demo> | Acciones: <sí/no> | Credenciales: <VAR_USUARIO, VAR_PASSWORD>] (si falta algo, se pregunta)"
 ---
 
-# Generar manual de usuario en PDF
+# Generar manual de operación en PDF
 
 Datos que dio la persona usuaria:
 
@@ -77,26 +77,34 @@ ofrece `npm i -D @playwright/test && npx playwright install chromium` y
 
 ## 3. Generar el manual
 
-Delega en el subagente **`user-manual-writer`** (con el plugin
-instalado se llama `qa-user-manual-writer:user-manual-writer`). Pásale
+Delega en el subagente **`operation-manual-writer`** (con el plugin
+instalado se llama `qa-operation-manual-writer:operation-manual-writer`). Pásale
 URL, módulo, funcionalidad, entorno, `Acciones sobre registros:
 autorizadas` o `no autorizadas`, si requiere login, los nombres de las
 variables **definidas** (nunca sus valores), la audiencia, si se
 conservan los registros de prueba y el idioma de la petición.
 
 Cuando termine, comprueba que existe el PDF en
-`docs/user-manuals/<sitio>/<módulo>/manual-*.pdf`. Si no se creó,
+`docs/operation-manuals/<sitio>/<módulo>/manual-<módulo>.pdf`, su versión
+`manual-<módulo>-sin-anexos.pdf` y el registro
+`registros-de-prueba-<módulo>.md` en la misma carpeta. Si no se creó el PDF,
 **detente** y explica el motivo con lo que reportó el subagente.
 
 ## 4. Resumen final
 
 Responde de forma breve, con:
 
-- la ruta del PDF, del HTML fuente y de la carpeta de capturas;
+- la ruta del PDF completo, del PDF sin anexos (para usuarios finales),
+  de los HTML fuente, de la carpeta de capturas y del
+  registro de pruebas (`registros-de-prueba-<módulo>.md`), que es
+  donde la persona encuentra lo que debe eliminar a mano;
 - páginas y procedimientos documentados;
 - flujos ejecutados y no ejecutados (con motivo);
 - registros de prueba creados y si se eliminaron (identificadores de
-  los que quedaron);
+  los que quedaron), incluidos los que el sistema creó solo en otros
+  módulos (módulo y URL) y la ruta de la carpeta de trabajo si se
+  conservó;
+- funciones visibles del módulo que el manual no cubre;
 - las 3 anomalías principales y lo marcado "(por confirmar)".
 
 No pegues el manual completo.
